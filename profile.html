@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .top-bar { justify-content: space-between; }
+    .logout-btn { font-size: 13px; color: var(--text-muted); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 20px; }
+    .logout-btn:hover { border-color: var(--orange); color: var(--orange); }
+    .hero { color: white; }
+    .hero-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.25); font-size: 28px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .hero-name  { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+    .hero-email { font-size: 13px; opacity: .85; margin-bottom: 4px; }
+    .hero-meta  { font-size: 13px; opacity: .75; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+    .hero-meta span { background: rgba(255,255,255,.15); border-radius: 20px; padding: 2px 10px; }
+    .trust-badge-hero { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.2); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 600; margin-top: 12px; }
+    .progress-bar { height: 6px; background: rgba(255,255,255,.3); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: white; transition: width .4s; }
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-card  { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px; text-align: center; }
+    .stat-num   { font-size: 24px; font-weight: 800; color: var(--orange); }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .trust-level-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .trust-level-row:last-child { border-bottom: none; }
+    .trust-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .trust-level-name  { flex: 1; font-weight: 500; }
+    .trust-level-range { color: var(--text-muted); font-size: 12px; }
+    .trust-level-row.current { background: var(--orange-bg); border-radius: 8px; }
+    .avatar-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin-top: 6px; }
+    .avatar-opt  { font-size: 26px; text-align: center; padding: 8px 4px; border-radius: var(--radius-sm); border: 2px solid transparent; cursor: pointer; transition: all .15s; background: var(--cream); }
+    .avatar-opt:hover { border-color: var(--orange); }
+    .avatar-opt.selected { border-color: var(--orange); background: var(--orange-bg); }
+    .event-row  { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .event-row:last-child { border-bottom: none; }
+    .event-info { flex: 1; }
+    .event-title-text { font-size: 14px; font-weight: 600; }
+    .event-meta-sm { font-size: 12px; color: var(--text-muted); }
+    .empty-msg { font-size: 14px; color: var(--text-muted); text-align: center; padding: 12px 0; }
+    .empty-msg a { color: var(--orange); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<header class="top-bar">
+  <div class="logo" style="font-size:17px;">Profile</div>
+  <a href="#" class="logout-btn" onclick="doLogout()">Log Out</a>
+</header>
+
+<main class="page">
+  <div id="flash" class="flash-success hidden"></div>
+  <div id="loading" class="loading"><div class="spinner"></div>Loading profile…</div>
+  <div id="content" class="hidden"></div>
+</main>
+
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const AVATARS = ['🏀','⚽','🏐','🎾','⚾','🏈','🏸','🥏','🏒','🏓','🏅','🌟','🔥','💪','🏆','🦁','🐯','🦊'];
+  let currentPlayer = null;
+  let selectedAvatar = null;
+
+  auth.onAuthStateChanged(async (firebaseUser) => {
+    if (!firebaseUser) { window.location.href = 'login.html'; return; }
+    buildNav('Profile');
+
+    try {
+      currentPlayer = await getOrCreatePlayer(firebaseUser);
+
+      const evSnap = await db.collection('events').get();
+      const userEvents = evSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(e => (e.joinedPlayerIds || []).includes(currentPlayer.id))
+        .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime))
+        .slice(0, 10);
+
+      render(currentPlayer, userEvents);
+    } catch(e) {
+      document.getElementById('loading').innerHTML = `<p style="color:red;text-align:center;">Error: ${e.message}</p>`;
+    }
+  });
+
+  function render(player, userEvents) {
+    document.getElementById('loading').classList.add('hidden');
+    const score = player.trustScore || 50;
+    const level = trustLevel(score);
+    const content = document.getElementById('content');
+    content.classList.remove('hidden');
+    content.innerHTML = `
+      <div class="hero-gradient hero">
+        <div class="hero-avatar">${player.avatar || '🏅'}</div>
+        <div class="hero-name">${player.name || ''}</div>
+        <div class="hero-email">${player.email || ''}</div>
+        <div class="hero-meta">
+          ${player.school ? `<span>${player.school}</span>` : ''}
+          ${player.gender ? `<span>${player.gender}</span>` : ''}
+          ${player.grade  ? `<span>Grade ${player.grade}</span>` : ''}
+        </div>
+        <div class="trust-badge-hero">${trustBadge(score)} ${trustLabel(score)}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${score}%"></div></div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num">${score} / 100</div><div class="stat-label">Trust Score</div></div>
+        <div class="stat-card"><div class="stat-num">${player.eventsJoined || 0}</div><div class="stat-label">Games Joined</div></div>
+        <div class="stat-card"><div class="stat-num">${player.eventsHosted || 0}</div><div class="stat-label">Games Hosted</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Trust Levels</div>
+        ${[
+          { l:1, color:'#DC2626', icon:'🌱', label:'Newcomer',  range:'0–20' },
+          { l:2, color:'#D97706', icon:'⭐', label:'Rising',    range:'21–40' },
+          { l:3, color:'#16A34A', icon:'🔵', label:'Trusted',   range:'41–70' },
+          { l:4, color:'#2563EB', icon:'🟣', label:'Veteran',   range:'71–90' },
+          { l:5, color:'#7C3AED', icon:'👑', label:'Legend',    range:'91–100' },
+        ].map(t => `
+          <div class="trust-level-row ${t.l === level ? 'current' : ''}">
+            <div class="trust-dot" style="background:${t.color}"></div>
+            <div class="trust-level-name">${t.icon} ${t.label}</div>
+            <div class="trust-level-range">${t.range}</div>
+          </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Edit Profile</div>
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="editName" class="form-input" value="${player.name || ''}"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">School</label>
+          <input type="text" id="editSchool" class="form-input" value="${player.school || ''}" placeholder="e.g. West Vancouver Secondary"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select id="editGender" class="form-select">
+            <option value="">Prefer not to say</option>
+            ${['Male','Female','Non-binary'].map(g => `<option value="${g}" ${player.gender===g?'selected':''}>${g}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grade</label>
+          <select id="editGrade" class="form-select">
+            <option value="">Not set</option>
+            ${GRADES.map(g => `<option value="${g}" ${player.grade===g?'selected':''}>${g}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Avatar</label>
+          <div class="avatar-grid">
+            ${AVATARS.map(a => `<div class="avatar-opt${player.avatar===a?' selected':''}" onclick="pickAvatar('${a}')">${a}</div>`).join('')}
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Your Events</div>
+        ${userEvents.length === 0
+          ? `<div class="empty-msg">You haven't joined any events yet.<br/><a href="explore.html">Browse events →</a></div>`
+          : userEvents.map(e => `
+            <div class="event-row" onclick="location.href='event.html?id=${e.id}'">
+              <span style="font-size:22px;">${sportEmoji(e.sport)}</span>
+              <div class="event-info">
+                <div class="event-title-text">${e.title}</div>
+                <div class="event-meta-sm">${formatDateTime(e.dateTime)} · ${e.location}</div>
+              </div>
+              <span style="color:var(--text-muted);">›</span>
+            </div>`).join('')}
+      </div>
+    `;
+  }
+
+  function pickAvatar(emoji) {
+    selectedAvatar = emoji;
+    document.querySelectorAll('.avatar-opt').forEach(el => el.classList.toggle('selected', el.textContent === emoji));
+  }
+
+  async function saveProfile() {
+    const name   = document.getElementById('editName').value.trim();
+    const school = document.getElementById('editSchool').value.trim();
+    const gender = document.getElementById('editGender').value;
+    const grade  = document.getElementById('editGrade').value;
+    if (!name) { showFlash('Name cannot be empty.', 'error'); return; }
+    const updates = { name, school, gender, grade };
+    if (selectedAvatar) updates.avatar = selectedAvatar;
+    await db.collection('players').doc(currentPlayer.id).update(updates);
+    showFlash('Profile saved! ✅', 'success');
+  }
+
+  async function doLogout() {
+    await auth.signOut();
+    location.href = 'login.html';
+  }
+</script>
+</body>
+</html>

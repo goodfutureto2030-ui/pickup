@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Explore · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .top-bar { justify-content: space-between; }
+    .filter-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .chip { flex-shrink: 0; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--text); transition: all .15s; }
+    .chip.active, .chip:hover { background: var(--orange); border-color: var(--orange); color: white; }
+    .results-count { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+    .empty-icon  { font-size: 48px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+<header class="top-bar">
+  <div class="logo">PICKUP <span style="color:var(--text);font-weight:400;font-size:14px;margin-left:6px;">Explore</span></div>
+  <a href="create.html" style="background:var(--orange);color:white;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;">+ Create</a>
+</header>
+<main class="page">
+  <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Find a Game</div>
+  <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Browse open events near campus</div>
+  <div class="filter-row" id="filterRow"></div>
+  <div class="results-count" id="resultsCount"></div>
+  <div id="loading" class="loading"><div class="spinner"></div>Loading events…</div>
+  <div id="eventsList"></div>
+</main>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let allEvents = [];
+  let activeFilter = 'All';
+
+  auth.onAuthStateChanged(async (firebaseUser) => {
+    if (!firebaseUser) { window.location.href = 'login.html'; return; }
+    buildNav('Explore');
+
+    const chips = ['All', ...SPORTS.map(s => s.name)];
+    document.getElementById('filterRow').innerHTML = chips.map(s =>
+      `<div class="chip${s==='All'?' active':''}" onclick="setFilter('${s}')" id="chip-${s.replace(/ /g,'-')}">${s}</div>`
+    ).join('');
+
+    try {
+      const snap = await db.collection('events').get();
+      const now = new Date();
+      allEvents = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(e => !e.completed && e.dateTime && new Date(e.dateTime) >= now)
+        .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+    } catch(e) {
+      console.error(e);
+    }
+    document.getElementById('loading').classList.add('hidden');
+    renderEvents();
+  });
+
+  function setFilter(sport) {
+    activeFilter = sport;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    document.getElementById('chip-' + sport.replace(/ /g,'-')).classList.add('active');
+    renderEvents();
+  }
+
+  function renderEvents() {
+    const filtered = activeFilter === 'All' ? allEvents : allEvents.filter(e => e.sport === activeFilter);
+    document.getElementById('resultsCount').textContent = `${filtered.length} event${filtered.length!==1?'s':''} available`;
+    document.getElementById('eventsList').innerHTML = filtered.length === 0
+      ? `<div class="empty-state"><div class="empty-icon">🏅</div><h3>No ${activeFilter!=='All'?activeFilter:''} events right now</h3><p style="margin-bottom:20px;">Be the first to organize one!</p><a href="create.html" class="btn btn-primary" style="display:inline-block;width:auto;padding:12px 24px;">Create an Event</a></div>`
+      : filtered.map(e => {
+          const card = eventCardHTML(e);
+          return card.replace(`<div class="event-meta">🕐`, `<div class="event-meta">👤 Created by ${e.hostName||'Someone'}</div><div class="event-meta">🕐`);
+        }).join('');
+  }
+</script>
+</body>
+</html>

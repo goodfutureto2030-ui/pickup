@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Event · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .section-header { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub    { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+    .sport-selector { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .sport-option input { display: none; }
+    .sport-option label { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
+    .sport-option input:checked + label { background: var(--orange-bg); border-color: var(--orange); color: var(--orange); }
+    .sport-option label:hover { border-color: var(--orange); }
+    .sport-icon { font-size: 24px; }
+    .restriction-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
+    .restriction-grid.three { grid-template-columns: repeat(3,1fr); }
+    .toggle-option input { display: none; }
+    .toggle-option label { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; text-align: center; }
+    .toggle-option input:checked + label { background: var(--orange-bg); border-color: var(--orange); color: var(--orange); }
+    .toggle-option label:hover { border-color: var(--orange); }
+    .restriction-note { font-size: 12px; color: var(--text-muted); margin-top: 8px; padding: 8px 10px; background: var(--cream); border-radius: var(--radius-sm); }
+  </style>
+</head>
+<body>
+<header class="top-bar">
+  <a href="index.html" class="back-btn">‹</a>
+  <div class="logo" style="font-size:17px;">Create Event</div>
+</header>
+<main class="page">
+  <div class="section-header">New Game</div>
+  <div class="section-sub">Organize a pickup game and invite others to join</div>
+  <div id="flash" class="flash-error hidden"></div>
+  <div id="authLoading" class="loading"><div class="spinner"></div>Loading…</div>
+  <div id="formContent" class="hidden">
+
+    <div class="card">
+      <div class="card-title">🏅 Sport</div>
+      <div class="sport-selector" id="sportSelector"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Details</div>
+      <div class="form-group">
+        <label class="form-label">Event Name</label>
+        <input type="text" id="title" class="form-input" placeholder="e.g. Friday Night 3v3 Basketball" maxlength="60"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" id="location" class="form-input" placeholder="e.g. New Gym, WVSS"/>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">Date &amp; Time</label>
+          <input type="datetime-local" id="dateTime" class="form-input"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Players</label>
+          <input type="number" id="maxPlayers" class="form-input" min="2" max="50" value="10"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Skill Level</label>
+        <select id="skillLevel" class="form-select">
+          <option>All Welcome</option>
+          <option>Beginner</option>
+          <option>Intermediate</option>
+          <option>Advanced</option>
+          <option>Competitive</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+        <textarea id="description" class="form-textarea" placeholder="What should people know? Bring water? Any rules?"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚻 Gender Restriction</div>
+      <div class="restriction-grid three">
+        <div class="toggle-option"><input type="radio" id="gender-any" name="genderRestriction" value="Any" checked/><label for="gender-any">👥 Any</label></div>
+        <div class="toggle-option"><input type="radio" id="gender-male" name="genderRestriction" value="Male"/><label for="gender-male">Male only</label></div>
+        <div class="toggle-option"><input type="radio" id="gender-female" name="genderRestriction" value="Female"/><label for="gender-female">Female only</label></div>
+        <div class="toggle-option"><input type="radio" id="gender-mixed" name="genderRestriction" value="Mixed"/><label for="gender-mixed">Mixed</label></div>
+        <div class="toggle-option"><input type="radio" id="gender-nb" name="genderRestriction" value="Non-binary"/><label for="gender-nb">Non-binary</label></div>
+      </div>
+      <div class="restriction-note">ℹ️ Only players whose profile matches this setting will be able to join.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎓 Grade Restriction</div>
+      <div class="restriction-grid three">
+        <div class="toggle-option"><input type="checkbox" id="grade-any" checked onchange="toggleGradeAny(this)"/><label for="grade-any">🌐 All grades</label></div>
+      </div>
+      <div id="gradeCheckboxes" style="display:none;margin-top:10px;">
+        <div class="restriction-grid three" id="gradeGrid"></div>
+      </div>
+      <div class="restriction-note">ℹ️ Leave "All grades" checked to allow everyone.</div>
+    </div>
+
+    <button class="btn btn-primary" id="submitBtn" onclick="submitEvent()">Create Event →</button>
+
+  </div>
+</main>
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  let currentPlayer = null;
+
+  auth.onAuthStateChanged(async (firebaseUser) => {
+    if (!firebaseUser) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    buildNav('Create');
+
+    try {
+      currentPlayer = await getOrCreatePlayer(firebaseUser);
+    } catch(e) {
+      currentPlayer = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+        email: firebaseUser.email,
+        avatar: '🏅'
+      };
+    }
+
+    document.getElementById('authLoading').classList.add('hidden');
+    document.getElementById('formContent').classList.remove('hidden');
+
+    document.getElementById('sportSelector').innerHTML = SPORTS.map((s, i) => `
+      <div class="sport-option">
+        <input type="radio" id="sport-${s.name.replace(/ /g,'-')}" name="sport" value="${s.name}" ${i===0?'checked':''}/>
+        <label for="sport-${s.name.replace(/ /g,'-')}">
+          <span class="sport-icon">${s.emoji}</span>
+          <span>${s.name}</span>
+        </label>
+      </div>`).join('');
+
+    document.getElementById('gradeGrid').innerHTML = GRADES.map(g => `
+      <div class="toggle-option">
+        <input type="checkbox" id="grade-${g}" value="${g}"/>
+        <label for="grade-${g}">Grade ${g}</label>
+      </div>`).join('');
+
+    const soon = new Date(Date.now() + 3600000);
+    soon.setMinutes(0, 0, 0);
+    document.getElementById('dateTime').value = soon.toISOString().slice(0, 16);
+  });
+
+  function toggleGradeAny(cb) {
+    const box = document.getElementById('gradeCheckboxes');
+    box.style.display = cb.checked ? 'none' : 'block';
+    if (cb.checked) {
+      box.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = false);
+    }
+  }
+
+  async function submitEvent() {
+    console.log('submitEvent fired, currentPlayer =', currentPlayer);
+
+    if (!currentPlayer) {
+      showFlash('Profile not loaded. Please try again in a moment.', 'error');
+      return;
+    }
+
+    const sport       = document.querySelector('input[name="sport"]:checked')?.value;
+    const title       = document.getElementById('title').value.trim();
+    const location    = document.getElementById('location').value.trim();
+    const dateTime    = document.getElementById('dateTime').value;
+    const maxPlayers  = parseInt(document.getElementById('maxPlayers').value);
+    const skillLevel  = document.getElementById('skillLevel').value;
+    const description = document.getElementById('description').value.trim();
+    const genderRestriction = document.querySelector('input[name="genderRestriction"]:checked')?.value || 'Any';
+    const gradeAny    = document.getElementById('grade-any').checked;
+    const allowedGrades = gradeAny ? [] : GRADES.filter(g => document.getElementById('grade-' + g)?.checked);
+
+    console.log('Values:', { sport, title, location, dateTime, maxPlayers });
+
+    if (!sport)    { showFlash('Please select a sport.', 'error'); return; }
+    if (!title)    { showFlash('Please enter an event name.', 'error'); return; }
+    if (!location) { showFlash('Please enter a location.', 'error'); return; }
+    if (!dateTime) { showFlash('Please select a date and time.', 'error'); return; }
+    if (new Date(dateTime) < new Date()) { showFlash('Please select a future date and time.', 'error'); return; }
+    if (isNaN(maxPlayers) || maxPlayers < 2) { showFlash('Please enter a valid maximum number of players (2 or more).', 'error'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.textContent = 'Creating…';
+    btn.disabled = true;
+
+    try {
+      console.log('Writing to Firestore...');
+
+      const ref = await db.collection('events').add({
+        sport,
+        title,
+        location,
+        dateTime,
+        maxPlayers,
+        skillLevel,
+        description,
+        genderRestriction,
+        allowedGrades,
+        gradeAny,
+        hostId:          currentPlayer.id,
+        hostName:        currentPlayer.name,
+        creatorId:       currentPlayer.id,
+        creatorName:     currentPlayer.name,
+        emoji:           sportEmoji(sport),
+        joinedPlayerIds: [currentPlayer.id],
+        completed:       false,
+        spotsLeft:       maxPlayers - 1,
+        createdAt:       firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      console.log('Event created! ID =', ref.id);
+
+      // Stats update (non-blocking)
+      db.collection('players').doc(currentPlayer.id).update({
+        eventsHosted: firebase.firestore.FieldValue.increment(1),
+        eventsJoined: firebase.firestore.FieldValue.increment(1),
+      }).catch(e => console.warn('Stats update failed:', e));
+
+      window.location.href = 'event.html?id=' + ref.id;
+
+    } catch(e) {
+      console.error('Firestore error:', e);
+      showFlash('Error: ' + e.message, 'error');
+      btn.textContent = 'Create Event →';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

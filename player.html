@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Player · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .hero { color: white; }
+    .hero-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.25);
+                   font-size: 28px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .hero-name  { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+    .hero-email { font-size: 13px; opacity: .85; }
+    .hero-meta  { font-size: 13px; opacity: .75; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .hero-meta span { background: rgba(255,255,255,.15); border-radius: 20px; padding: 2px 10px; }
+    .trust-badge-hero { display: inline-flex; align-items: center; gap: 6px;
+                        background: rgba(255,255,255,.2); border-radius: 20px;
+                        padding: 5px 12px; font-size: 13px; font-weight: 600; margin-top: 12px; }
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-card  { background: var(--white); border: 1px solid var(--border);
+                  border-radius: var(--radius); padding: 16px 12px; text-align: center; }
+    .stat-num   { font-size: 24px; font-weight: 800; color: var(--orange); }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .sport-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .sport-tag  { background: var(--orange-bg); color: var(--orange);
+                  padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+    .star-row   { display: flex; gap: 6px; margin-top: 4px; }
+    .star-btn   { font-size: 28px; background: none; border: none; cursor: pointer;
+                  opacity: .3; transition: opacity .1s; }
+    .star-btn.on { opacity: 1; }
+    .no-event-notice { background: var(--orange-bg); border: 1px solid rgba(200,84,26,.2);
+                       border-radius: var(--radius-sm); padding: 10px 14px;
+                       font-size: 13px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<header class="top-bar">
+  <a href="javascript:history.back()" class="back-btn">‹</a>
+  <div id="topBarTitle" style="font-size:17px;font-weight:600;">Player</div>
+</header>
+
+<main class="page">
+  <div id="flash" class="flash-success hidden"></div>
+  <div id="loading" class="loading"><div class="spinner"></div>Loading player…</div>
+  <div id="content" class="hidden"></div>
+</main>
+
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const params   = new URLSearchParams(location.search);
+  const playerId = params.get('id');
+  const eventId  = params.get('eventId');
+  let currentPlayer = null;
+  let selectedStars = 5;
+
+  requireAuth(async (firebaseUser) => {
+    buildNav('Profile');
+    currentPlayer = await getCurrentPlayer(firebaseUser.uid);
+
+    const snap = await db.collection('players').doc(playerId).get();
+    if (!snap.exists) { location.href = 'explore.html'; return; }
+    const player = { id: snap.id, ...snap.data() };
+
+    document.getElementById('topBarTitle').textContent = player.name;
+    const isSelf = player.id === currentPlayer.id;
+    render(player, isSelf);
+  });
+
+  function render(player, isSelf) {
+    document.getElementById('loading').classList.add('hidden');
+    const score = player.trustScore || 50;
+    const content = document.getElementById('content');
+    content.classList.remove('hidden');
+    content.innerHTML = `
+      <div class="hero-gradient hero">
+        <div class="hero-avatar">${player.avatar || '🏅'}</div>
+        <div class="hero-name">${player.name}</div>
+        <div class="hero-email">${player.email}</div>
+        <div class="hero-meta">
+          ${player.school ? `<span>${player.school}</span>` : ''}
+          ${player.gender ? `<span>${player.gender}</span>` : ''}
+          ${player.grade  ? `<span>Grade ${player.grade}</span>` : ''}
+        </div>
+        <div class="trust-badge-hero">${trustBadge(score)} ${trustLabel(score)}</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num">${score} / 100</div>
+          <div class="stat-label">Trust Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${player.eventsJoined || 0}</div>
+          <div class="stat-label">Games Joined</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">${player.eventsHosted || 0}</div>
+          <div class="stat-label">Games Hosted</div>
+        </div>
+      </div>
+
+      ${(player.favoriteSports || []).length > 0 ? `
+        <div class="card">
+          <div class="card-title">Favourite Sports</div>
+          <div class="sport-tags">
+            ${player.favoriteSports.map(s => `<span class="sport-tag">${sportEmoji(s)} ${s}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${isSelf
+        ? `<div class="card" style="text-align:center;color:var(--text-muted);font-size:14px;padding:24px 20px;">
+             This is your profile. <a href="profile.html" style="color:var(--orange);font-weight:600;">Edit it here →</a>
+           </div>`
+        : `
+        <div class="card">
+          <div class="card-title">⭐ Rate This Player</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Ratings affect trust scores. You can only rate players from shared events.
+          </p>
+          ${!eventId
+            ? `<div class="no-event-notice">ℹ️ Open this profile from an event page to enable rating.</div>`
+            : `
+            <div class="form-group">
+              <label class="form-label">Stars</label>
+              <div class="star-row" id="starRow">
+                ${[1,2,3,4,5].map(i => `<button type="button" class="star-btn on" data-val="${i}" onclick="selectStar(${i})">⭐</button>`).join('')}
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Comment <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+              <textarea id="ratingComment" class="form-textarea" placeholder="Great teammate, showed up on time…"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="submitRating('${player.id}')">Submit Rating ⭐</button>
+          `}
+        </div>
+
+        <div class="card">
+          <div class="card-title">🚩 Report This Player</div>
+          <p style="font-size:13px;color:var(--text-muted);">
+            If you have any issues with this player, please contact us at
+            <a href="mailto:good.future.to.2030@gmail.com" style="color:var(--orange);font-weight:600;">
+              good.future.to.2030@gmail.com
+            </a>
+          </p>
+        </div>`
+      }
+    `;
+  }
+
+  function selectStar(val) {
+    selectedStars = val;
+    document.querySelectorAll('.star-btn').forEach(b => {
+      b.classList.toggle('on', parseInt(b.dataset.val) <= val);
+    });
+  }
+
+  async function submitRating(toPlayerId) {
+    const comment = document.getElementById('ratingComment')?.value.trim() || '';
+    try {
+      // Save rating
+      await db.collection('ratings').add({
+        fromPlayerId: currentPlayer.id,
+        toPlayerId,
+        eventId,
+        stars: selectedStars,
+        comment,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      // Update target player's trust score (simple average nudge)
+      const nudge = (selectedStars - 3) * 2; // -4 to +4
+      await db.collection('players').doc(toPlayerId).update({
+        trustScore: firebase.firestore.FieldValue.increment(nudge),
+      });
+      showFlash('Rating submitted! Thanks.', 'success');
+    } catch (e) {
+      showFlash('Error: ' + e.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>

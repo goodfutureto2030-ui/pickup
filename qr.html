@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Code · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .hero-qr { background: linear-gradient(135deg,var(--orange) 0%,#E8612A 100%);
+               border-radius: var(--radius); padding: 28px 20px;
+               margin-bottom: 20px; color: white; text-align: center; }
+    .hero-qr h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .hero-qr p  { font-size: 14px; opacity: .88; margin-bottom: 20px; }
+    .qr-white-box { background: white; border-radius: var(--radius-sm);
+                    padding: 12px; display: inline-block; }
+    .qr-url { font-size: 12px; opacity: .75; margin-top: 10px; word-break: break-all; }
+    .section-header { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+    .event-qr-row { display: flex; align-items: center; gap: 14px; padding: 12px 0;
+                    border-bottom: 1px solid var(--border); cursor: pointer; }
+    .event-qr-row:last-child { border-bottom: none; }
+    .event-qr-row:hover { color: var(--orange); }
+    .event-qr-title { font-size: 14px; font-weight: 600; }
+    .event-qr-meta  { font-size: 12px; color: var(--text-muted); }
+    .how-to { background: var(--orange-bg); border: 1px solid rgba(200,84,26,.15);
+               border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+    .how-to h3 { font-size: 15px; font-weight: 600; color: var(--orange); margin-bottom: 10px; }
+    .how-step  { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+    .how-step:last-child { margin-bottom: 0; }
+    .step-num  { width: 24px; height: 24px; border-radius: 50%; background: var(--orange);
+                 color: white; font-size: 12px; font-weight: 700;
+                 display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .step-text { font-size: 13px; color: var(--text); }
+  </style>
+</head>
+<body>
+
+<header class="top-bar">
+  <a href="index.html" class="back-btn">‹</a>
+  <div class="logo" style="font-size:17px;">QR Code</div>
+</header>
+
+<main class="page">
+
+  <!-- App-level QR -->
+  <div class="hero-qr">
+    <h2>📲 Share PICKUP</h2>
+    <p>Invite friends to join the app</p>
+    <div class="qr-white-box">
+      <div id="appQR"></div>
+    </div>
+    <div class="qr-url" id="appUrl"></div>
+  </div>
+
+  <!-- How to -->
+  <div class="how-to">
+    <h3>How to use QR codes at your school</h3>
+    <div class="how-step">
+      <div class="step-num">1</div>
+      <div class="step-text">Screenshot or print this QR code and post it around campus.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">2</div>
+      <div class="step-text">Friends scan it with their phone camera — it opens the app instantly.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">3</div>
+      <div class="step-text">They land on the event list and can join a game in seconds.</div>
+    </div>
+  </div>
+
+  <!-- Individual event QRs -->
+  <div class="card">
+    <div class="section-header">Event QR Codes</div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+      Tap any event to view and share its individual QR code
+    </p>
+    <div id="loading" class="loading"><div class="spinner"></div>Loading events…</div>
+    <div id="eventList"></div>
+  </div>
+
+</main>
+
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  requireAuth(async () => {
+    buildNav('QR Code');
+
+    // App-level QR
+    const appUrl = location.origin + '/explore.html';
+    document.getElementById('appUrl').textContent = appUrl;
+    new QRCode(document.getElementById('appQR'), {
+      text: appUrl, width: 200, height: 200,
+    });
+
+    // Event list
+    const now  = new Date().toISOString();
+    const snap = await db.collection('events')
+      .where('dateTime', '>=', now)
+      .where('completed', '==', false)
+      .orderBy('dateTime')
+      .limit(20)
+      .get();
+    const events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('loading').classList.add('hidden');
+
+    if (events.length === 0) {
+      document.getElementById('eventList').innerHTML =
+        '<p style="font-size:13px;color:var(--text-muted);">No upcoming events right now.</p>';
+    } else {
+      document.getElementById('eventList').innerHTML = events.map(e => {
+        const spots = e.maxPlayers - (e.joinedPlayerIds || []).length;
+        return `
+          <div class="event-qr-row" onclick="location.href='event.html?id=${e.id}'">
+            <span style="font-size:24px;">${sportEmoji(e.sport)}</span>
+            <div style="flex:1;">
+              <div class="event-qr-title">${e.title}</div>
+              <div class="event-qr-meta">${formatDateTime(e.dateTime)} · ${spots} spots</div>
+            </div>
+            <span style="color:var(--text-muted);font-size:18px;">›</span>
+          </div>`;
+      }).join('');
+    }
+  });
+</script>
+</body>
+</html>

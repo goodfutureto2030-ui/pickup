@@ -1,0 +1,7 @@
+# Never commit real Firebase credentials
+# (Keep firebase-config.js but make sure it only has placeholders
+#  before pushing to a public repo)
+
+.DS_Store
+*.log
+node_modules/

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px 16px; padding-bottom: 24px; }
+    .logo-area { text-align: center; margin-bottom: 24px; }
+    .logo-text  { font-size: 28px; font-weight: 800; color: var(--orange); }
+    .auth-card  { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px; width: 100%; max-width: 420px; }
+    .auth-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .pin-hint { display: flex; align-items: center; gap: 6px; background: var(--orange-bg); border: 1px solid rgba(200,84,26,.22); border-radius: 8px; padding: 8px 12px; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--orange); }
+    .divider { text-align: center; color: var(--text-muted); font-size: 13px; margin: 16px 0; position: relative; }
+    .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: var(--border); }
+    .divider::before { left: 0; } .divider::after { right: 0; }
+  </style>
+</head>
+<body>
+<div class="logo-area">
+  <img src="pickup-icon.png" style="height:36px;" alt="PICKUP"/>
+  <div class="logo-text">PICKUP</div>
+</div>
+<div class="auth-card">
+  <h2>Create Account</h2>
+  <div id="flash" class="flash-error hidden"></div>
+
+  <div class="form-group">
+    <label class="form-label">Full Name</label>
+    <input type="text" id="name" class="form-input" placeholder="First and Last name" required/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Email</label>
+    <input type="email" id="email" class="form-input" placeholder="you@school.edu" required autocomplete="email"/>
+  </div>
+  <div class="row-2">
+    <div class="form-group">
+      <label class="form-label">Grade</label>
+      <select id="grade" class="form-select">
+        <option value="">Select grade</option>
+        <option value="8">Grade 8</option>
+        <option value="9">Grade 9</option>
+        <option value="10">Grade 10</option>
+        <option value="11">Grade 11</option>
+        <option value="12">Grade 12</option>
+        <option value="University">University</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Gender</label>
+      <select id="gender" class="form-select">
+        <option value="">Prefer not to say</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Non-binary">Non-binary</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">School PIN (Password)</label>
+    <input type="password" id="password" class="form-input" placeholder="Your school PIN number" required inputmode="numeric" pattern="\d{6,}"/>
+    <div class="pin-hint">🔐 Use your school PIN number as your password</div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Confirm PIN</label>
+    <input type="password" id="confirmPassword" class="form-input" placeholder="Re-enter your PIN" required inputmode="numeric"/>
+  </div>
+
+  <button class="btn btn-primary" id="signupBtn" onclick="doSignup()">Create Account →</button>
+  <div class="divider">or</div>
+  <a href="login.html" style="display:block;text-align:center;padding:14px;border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-decoration:none;color:var(--text);border:1.5px solid var(--border);">Log In Instead</a>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  auth.onAuthStateChanged(u => { if (u) window.location.href = 'index.html'; });
+
+  async function doSignup() {
+    const name  = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const pass  = document.getElementById('password').value;
+    const conf  = document.getElementById('confirmPassword').value;
+    const grade  = document.getElementById('grade').value;
+    const gender = document.getElementById('gender').value;
+    const flash  = document.getElementById('flash');
+    flash.classList.add('hidden');
+
+    if (!name)  return showErr('Please enter your full name.');
+    if (!email) return showErr('Please enter your email.');
+    if (!pass)  return showErr('Please enter a PIN.');
+    if (pass !== conf) return showErr('PINs do not match.');
+    if (pass.length < 6) return showErr('PIN must be at least 6 digits.');
+
+    const btn = document.getElementById('signupBtn');
+    btn.textContent = 'Creating…';
+    btn.disabled = true;
+
+    try {
+      // 1. Create Firebase Auth account
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+
+      // 2. Save display name to Firebase Auth profile
+      await cred.user.updateProfile({ displayName: name });
+
+      // 3. Save full player data to Firestore
+      await db.collection('players').doc(cred.user.uid).set({
+        id:             cred.user.uid,
+        name:           name,
+        email:          email,
+        grade:          grade || '',
+        gender:         gender || '',
+        school:         '',
+        avatar:         '🏅',
+        favoriteSports: [],
+        trustScore:     50,
+        eventsJoined:   0,
+        eventsHosted:   0,
+        createdAt:      firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      window.location.href = 'index.html';
+    } catch(e) {
+      showErr(e.message || 'Signup failed. Please try again.');
+      btn.textContent = 'Create Account →';
+      btn.disabled = false;
+    }
+  }
+
+  function showErr(msg) {
+    const flash = document.getElementById('flash');
+    flash.textContent = msg;
+    flash.className = 'flash-error';
+    flash.classList.remove('hidden');
+  }
+</script>
+</body>
+</html>

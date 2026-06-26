@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event · PICKUP</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    .event-hero { background: linear-gradient(135deg,var(--orange) 0%,#E8612A 100%);
+                  border-radius: var(--radius); padding: 24px 20px; margin-bottom: 16px;
+                  color: white; text-align: center; }
+    .event-hero-emoji { font-size: 52px; margin-bottom: 10px; }
+    .event-hero h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .event-hero p  { font-size: 14px; opacity: .88; }
+    .detail-row { display: flex; align-items: flex-start; gap: 12px;
+                  padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-icon  { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+    .detail-label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+    .detail-value { font-size: 15px; font-weight: 500; }
+    .capacity-bar-lg { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .capacity-fill-lg { height: 100%; background: var(--orange); border-radius: 4px; }
+    .capacity-fill-lg.full { background: #E24B4A; }
+    .capacity-nums { display: flex; justify-content: space-between;
+                     font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+    .capacity-main { font-size: 18px; font-weight: 700; color: var(--orange); margin-bottom: 4px; }
+    .already-joined { background: var(--success-bg); color: var(--success);
+                      padding: 14px; border-radius: var(--radius-sm);
+                      text-align: center; font-weight: 600; font-size: 15px; }
+    .player-row { display: flex; align-items: center; justify-content: space-between;
+                  padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .player-row:last-child { border-bottom: none; }
+    .player-left { display: flex; align-items: center; gap: 10px; }
+    .player-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--orange-bg);
+                     font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .player-name { font-size: 14px; font-weight: 600; }
+    .player-sub  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .host-badge  { font-size: 11px; color: var(--orange); font-weight: 700; }
+    .you-label   { font-size: 12px; color: var(--text-muted); font-style: italic; }
+    .qr-card     { text-align: center; padding: 20px; }
+    .qr-card h3  { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .qr-card p   { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .action-btn  { display: block; padding: 13px; border-radius: 8px; text-align: center;
+                   font-weight: 700; text-decoration: none; margin-bottom: 10px; cursor: pointer;
+                   border: none; width: 100%; font-size: 15px; }
+    .btn-dark    { background: #1A1714; color: white; }
+    .btn-green   { background: #166534; color: white; }
+    .completed-banner { background: #DCFCE7; color: #166534; padding: 14px;
+                        border-radius: 8px; text-align: center; font-weight: 700; font-size: 15px;
+                        margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<header class="top-bar">
+  <a href="explore.html" class="back-btn">‹</a>
+  <div id="topBarTitle" style="font-size:17px;font-weight:600;">Loading…</div>
+</header>
+
+<main class="page">
+  <div id="flash" class="flash-error hidden"></div>
+  <div id="loading" class="loading"><div class="spinner"></div>Loading event…</div>
+  <div id="content" class="hidden"></div>
+</main>
+
+<nav class="bottom-nav" id="bottom-nav"></nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const params  = new URLSearchParams(location.search);
+  const eventId = params.get('id');
+  let currentPlayer = null;
+  let eventData     = null;
+
+  requireAuth(async (firebaseUser) => {
+    buildNav('Explore');
+    if (!eventId) { location.href = 'explore.html'; return; }
+
+    // FIXED: Defensive loading to prevent crashes if a testing user profile doesn't exist yet
+    try {
+      const pSnap = await db.collection('players').doc(firebaseUser.uid).get();
+      if (pSnap.exists) {
+        currentPlayer = { id: pSnap.id, ...pSnap.data() };
+      } else {
+        currentPlayer = { 
+          id: firebaseUser.uid, 
+          name: firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Anonymous Player', 
+          avatar: '🏅',
+          gender: 'Any',
+          grade: 'Any'
+        };
+      }
+    } catch (e) {
+      currentPlayer = { id: firebaseUser.uid, name: 'Player', avatar: '🏅' };
+    }
+
+    const snap = await db.collection('events').doc(eventId).get();
+    if (!snap.exists) { location.href = 'explore.html'; return; }
+
+    eventData = { id: snap.id, ...snap.data() };
+    render(eventData, currentPlayer);
+  });
+
+  async function render(event, player) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('topBarTitle').textContent = event.sport;
+    document.title = event.title + ' · PICKUP';
+
+    const joined = (event.joinedPlayerIds || []).includes(player.id);
+    const spots  = event.maxPlayers - (event.joinedPlayerIds || []).length;
+    const pct    = Math.round(((event.joinedPlayerIds || []).length / event.maxPlayers) * 100);
+    const full   = spots <= 0;
+
+    const playerDocs = await Promise.all(
+      (event.joinedPlayerIds || []).map(uid => db.collection('players').doc(uid).get())
+    );
+    const players = playerDocs.map(d => d.exists ? { id: d.id, ...d.data() } : { id: d.id, name: 'Player', avatar: '🏅' }).filter(Boolean);
+
+    const content = document.getElementById('content');
+    content.classList.remove('hidden');
+    content.innerHTML = `
+      ${event.completed ? '<div class="completed-banner">🏁 This event has been completed</div>' : ''}
+
+      <div class="event-hero">
+        <div class="event-hero-emoji">${sportEmoji(event.sport)}</div>
+        <h1>${event.title}</h1>
+        <p>Organized by ${event.hostName || 'Someone'}</p>
+      </div>
+
+      <div class="card">
+        <div class="detail-row">
+          <div class="detail-icon">📅</div>
+          <div><div class="detail-label">Date &amp; Time</div>
+               <div class="detail-value">${formatDateTime(event.dateTime)}</div></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-icon">📍</div>
+          <div><div class="detail-label">Location</div>
+               <div class="detail-value">${event.location}</div></div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-icon">⚡</div>
+          <div><div class="detail-label">Skill Level</div>
+               <div class="detail-value">${event.skillLevel}</div></div>
+        </div>
+        ${event.description ? `
+        <div class="detail-row">
+          <div class="detail-icon">📝</div>
+          <div><div class="detail-label">Details</div>
+               <div class="detail-value">${event.description}</div></div>
+        </div>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="capacity-main">${spots > 0 ? spots + ' spots remaining' : 'Event is full'}</div>
+        <div class="capacity-bar-lg">
+          <div class="capacity-fill-lg ${full ? 'full' : ''}" style="width:${pct}%"></div>
+        </div>
+        <div class="capacity-nums">
+          <span>${(event.joinedPlayerIds || []).length} players joined</span>
+          <span>${event.maxPlayers} max</span>
+        </div>
+      </div>
+
+      ${joined
+        ? '<div class="already-joined" style="margin-bottom:16px;">✅ You\'re in! See you there.</div>'
+        : (!full && !event.completed)
+          ? `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="joinEvent()">Join This Event →</button>`
+          : `<div class="btn btn-disabled" style="margin-bottom:16px;">${event.completed ? 'Event Completed' : 'Event is Full'}</div>`
+      }
+
+      <div class="card">
+        <div class="card-title">Players</div>
+        ${players.map(p => `
+          <div class="player-row" onclick="location.href='player.html?id=${p.id}&eventId=${eventId}'">
+            <div class="player-left">
+              <div class="player-avatar">${p.avatar || '🏅'}</div>
+              <div>
+                <div class="player-name">${p.name}</div>
+                <div class="player-sub">
+                  ${p.id === event.hostId ? '<span class="host-badge">Host · </span>' : ''}
+                  ${trustBadge(p.trustScore || 50)} ${trustLabel(p.trustScore || 50)}
+                </div>
+              </div>
+            </div>
+            ${p.id === player.id ? '<span class="you-label">You</span>' : '<span style="color:var(--text-muted);font-size:18px;">›</span>'}
+          </div>`).join('')}
+      </div>
+
+      <div class="card qr-card">
+        <h3>📲 Share This Event</h3>
+        <p>Others can scan this QR code to join directly</p>
+        <div id="qrcode" style="display:inline-block;padding:8px;background:white;border:3px solid var(--orange);border-radius:var(--radius);"></div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">Print or screenshot to share</p>
+      </div>
+
+      ${joined || event.hostId === player.id ? `
+        <a href="chat.html?id=${eventId}" class="action-btn btn-dark">💬 Event Chat</a>
+      ` : ''}
+
+      ${player.id === event.creatorId && !event.completed ? `
+        <button class="action-btn btn-green" onclick="completeEvent()">🏁 Mark Event as Completed</button>
+      ` : ''}
+    `;
+
+    new QRCode(document.getElementById('qrcode'), {
+      text:   location.origin + '/event.html?id=' + eventId,
+      width:  180,
+      height: 180,
+    });
+  }
+
+  async function joinEvent() {
+    if (!currentPlayer || !eventData) return;
+    
+    // UPDATED: Added structural verification for Gender Restrictions
+    if (eventData.genderRestriction && eventData.genderRestriction !== 'Any') {
+      if (currentPlayer.gender && currentPlayer.gender !== 'Any' && currentPlayer.gender !== eventData.genderRestriction) {
+        showFlash(`This game is restricted to: ${eventData.genderRestriction} players.`, 'error');
+        return;
+      }
+    }
+
+    // UPDATED: Added structural verification for Grade Restrictions
+    if (eventData.gradeAny === false && eventData.allowedGrades && eventData.allowedGrades.length > 0) {
+      if (currentPlayer.grade && currentPlayer.grade !== 'Any' && !eventData.allowedGrades.includes(currentPlayer.grade.toString())) {
+        showFlash(`This game is restricted to grades: ${eventData.allowedGrades.join(', ')}.`, 'error');
+        return;
+      }
+    }
+
+    const flashEl = document.getElementById('flash');
+    flashEl.className = 'flash-error hidden';
+
+    try {
+      await db.collection('events').doc(eventId).update({
+        joinedPlayerIds: firebase.firestore.FieldValue.arrayUnion(currentPlayer.id),
+        spotsLeft:       firebase.firestore.FieldValue.increment(-1),
+      });
+      
+      // Make sure document exists before incrementing to avoid rules blocking the edit
+      await db.collection('players').doc(currentPlayer.id).set({
+        eventsJoined: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true });
+
+      location.reload();
+    } catch (e) {
+      showFlash('Could not join: ' + e.message, 'error');
+    }
+  }
+
+  function showFlash(text, type) {
+    const flashEl = document.getElementById('flash');
+    flashEl.textContent = text;
+    flashEl.className = type === 'success' ? 'flash-success' : 'flash-error';
+    flashEl.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function completeEvent() {
+    if (!confirm('Mark this event as completed?')) return;
+    await db.collection('events').doc(eventId).update({ completed: true });
+    location.reload();
+  }
+</script>
+</body>
+</html>
