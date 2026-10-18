@@ -52,11 +52,11 @@ function showFlash(msg, type = 'success') {
   setTimeout(() => el.classList.add('hidden'), 4000);
 }
 const NAV_ITEMS = [
-  { label: 'Home',    href: 'html/index.html',   icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
-  { label: 'Explore', href: 'html/explore.html', icon: '<circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>' },
-  { label: 'Create',  href: 'html/create.html',  icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>' },
-  { label: 'QR Code', href: 'html/qr.html',      icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path stroke-linecap="round" d="M14 14h2v2h-2zM18 14h3M14 18v3M18 18h3v3h-3z"/>' },
-  { label: 'Profile', href: 'html/profile.html', icon: '<path stroke-linecap="round" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+  { label: 'Home',    href: 'index.html',   icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>' },
+  { label: 'Explore', href: 'explore.html', icon: '<circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/>' },
+  { label: 'Create',  href: 'create.html',  icon: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>' },
+  { label: 'QR Code', href: 'qr.html',      icon: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path stroke-linecap="round" d="M14 14h2v2h-2zM18 14h3M14 18v3M18 18h3v3h-3z"/>' },
+  { label: 'Profile', href: 'profile.html', icon: '<path stroke-linecap="round" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
 ];
 function buildNav(activePage) {
   const nav = document.getElementById('bottom-nav');
@@ -89,7 +89,7 @@ function eventCardHTML(event) {
   const pct   = Math.round(((event.joinedPlayerIds||[]).length / event.maxPlayers) * 100);
   const spots = event.maxPlayers - (event.joinedPlayerIds||[]).length;
   const full  = spots <= 0;
-  return `<div class="event-card" onclick="location.href='html/event.html?id=${event.id}'">
+  return `<div class="event-card" onclick="location.href='event.html?id=${event.id}'">
     <div class="event-card-header">
       <span class="sport-emoji">${sportEmoji(event.sport)}</span>
       <div style="flex:1">
