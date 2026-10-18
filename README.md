@@ -1,25 +1,56 @@
-# PICKUP 🏅
-**Find pickup sports near campus — now as a static web app hosted on GitHub Pages.**
+# Pickups
+A web app that helps local people to find near pickup games, organize events, and connect with players.
 
-## Pages
-| File | Route |
+## Project Overview
+PICKUP is a web application designed to make finding and organizing casual sports games easier. Players can browse available events, create their own games, join other players, and communicate through event-specific chats.
+
+The platform aims to reduce the difficulty of coordinating informal sports by bringing event discovery, player profiles, and communication together in one place.
+
+### Key Features
+1.Event Discovery: Browse and filter available pickup sports events to find games that match your interests.
+2.Event Creation: Create new events and share game details with other players.
+3.Event Participation: View event details and join games with other participants.
+4.Real-Time Event Chat: Communicate with other players through event-specific chat rooms.
+5.layer Profiles: Create a personal profile and view other players' profiles.
+6.Player Ratings: Rate other players to support community interaction and accountability.
+7.QR Code Sharing: Generate QR codes to make sharing events and accessing them easier.
+8.User Authentication: Create an account and log in using Firebase Authentication..
+
+### Slides for the pitch
+Google slide: [https://docs.google.com/presentation/d/13NTIrkqaSQKT-TUSahjI9H6zHFcMCMAf4r6SGu20WH8/edit?usp=sharing]
+
+### Pages
+| File | Description |
 |---|---|
-| `index.html` | Home feed |
-| `explore.html` | Browse & filter events |
-| `create.html` | Create a new event |
-| `event.html?id=XXX` | Event detail + join + chat |
-| `chat.html?id=XXX` | Event chat |
-| `profile.html` | Your profile |
-| `player.html?id=XXX` | View another player + rate |
-| `qr.html` | QR codes for sharing |
-| `login.html` | Log in |
-| `signup.html` | Sign up |
+| `html/index.html` | Home feed |
+| `html/explore.html` | Browse & filter events |
+| `html/create.html` | Create a new event |
+| `html/event.html?id=XXX` | Event detail + join + chat |
+| `html/chat.html?id=XXX` | Event chat |
+| `html/profile.html` | Your profile |
+| `html/player.html?id=XXX` | View another player + rate |
+| `html/qr.html` | QR codes for sharing |
+| `html/login.html` | Log in |
+| `html/signup.html` | Sign up |
 
 ---
+### Tech Stack
+・HTML- structure and content of the web application.
+・CSS-Styleing and responsive interface design.
+・JacaScript-Cleint-side functionality and application logic.
+・Firebase Authentication-User registration and login.
+・Clound Firestore-Database for player profiles,events, messages, and ratings.
+・qrcode.js-ORcode generation.
+・GitHub Pages-web hosting.
+
+## Getting Started
+### Prerequisite 
+・A modern web browser
+・A GitHub account to host the application
+・A Firebase project with Authntication and Clound Firestore enabled.
 
 ## Setup (one-time, ~10 minutes)
-
-### 1. Add your Firebase config
+### 1. Firebase config
 Open `js/firebase-config.js` and replace the placeholder values with your real Firebase project settings.
 
 Find them at: **Firebase Console → Your Project → Project Settings → General → Your apps → Web app → Config**
@@ -95,9 +126,20 @@ pickup-js/
     └── app.js               Shared utilities
 ```
 
-## Tech used
-- **Firebase Auth** — user login/signup
-- **Cloud Firestore** — real-time database (replaces Java backend)
-- **qrcode.js** — QR code generation (replaces Java ZXing library)
-- Pure HTML + CSS + Vanilla JS — no build step needed
-- Hosted on **GitHub Pages** — 100% free
+## Project Owner
+Yuzuki Sato - [good.future.to.2030@gmail.com]
+
+## Version History
+Version 1.0 -Initial web application implementation with event discovery, event creation, player profiles, chat authntication, and QR code sharing.
+This project is licensed under the MIT License - see the LICENSE.md file for details
+
+## License
+This project is licensed underthe MIT license. See LICENCE.md for details.
+
+## Acknowledgments
+・Firebase
+・GitHub Pages
+・qrcode.js
+
+
+
